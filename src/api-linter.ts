@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
+import * as path from "path";
 
 interface Output {
   file_path: string;
@@ -43,6 +44,7 @@ export class APILinter {
   #channel: vscode.OutputChannel;
   #configFile?: string;
   #protoPaths: string[] = [];
+  #directories: string[] | null = null;
   #command: string[] = ["api-linter"];
   #workspacePath?: string;
 
@@ -68,7 +70,6 @@ export class APILinter {
       return;
     }
     this.#configFile = configFile;
-    this.#updateArguments();
   }
 
   setProtoPaths(protoPaths: string[]) {
@@ -76,7 +77,10 @@ export class APILinter {
       return;
     }
     this.#protoPaths = protoPaths;
-    this.#updateArguments();
+  }
+
+  setDirectories(directories: string[] | null) {
+    this.#directories = directories;
   }
 
   setWorkspacePath(workspacePath: string) {
@@ -97,10 +101,38 @@ export class APILinter {
   }
 
   lint(file: string): vscode.Diagnostic[] {
+    let cwd = null;
+
+    if (this.#directories && this.#directories.length) {
+      for (const dir of this.#directories) {
+        const rel = path.relative(dir, file);
+        if (!rel.startsWith('.')) {
+          cwd = dir;
+          file = rel;
+          break;
+        }
+      }
+      if (!cwd) {
+        // Skip files that are not located in directories
+        return [];
+      }
+      cwd = path.join(this.#workspacePath!, cwd);
+    } else {
+      cwd = this.#workspacePath!;
+    }
+
+    const args = ["--output-format", "json"];
+    if (this.#configFile) {
+      args.push("--config", path.relative(cwd, this.#configFile));
+    }
+    for (const protoPath of this.#protoPaths) {
+      args.push("-I", path.relative(cwd, path.join(this.#workspacePath!, protoPath)));
+    }
+
     const result = cp.spawnSync(
       this.#command[0],
-      [...this.#command.slice(1), file, ...this.#args],
-      { cwd: this.#workspacePath, encoding: "utf-8" }
+      [...this.#command.slice(1), file, ...args],
+      { cwd: cwd, encoding: "utf-8" }
     );
     if (result.status !== 0) {
       result.stderr = result.stderr.slice(result.stderr.indexOf(" "));
@@ -108,7 +140,7 @@ export class APILinter {
       result.stderr = result.stderr.slice(result.stderr.indexOf(" ") + 1);
       return result.stderr
         .split("\n")
-        .map((line) => {
+        .map((line: string) => {
           if (!line) {
             return;
           }
@@ -149,15 +181,5 @@ export class APILinter {
 
       return problem;
     });
-  }
-
-  #updateArguments() {
-    this.#args = ["--output-format", "json"];
-    if (this.#configFile) {
-      this.#args.push("--config", this.#configFile);
-    }
-    for (const path of this.#protoPaths) {
-      this.#args.push("-I", path);
-    }
   }
 }

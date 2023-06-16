@@ -1,10 +1,10 @@
 {
-  "name": "mathematic-vscode-api-linter",
+  "name": "sameid-vscode-api-linter",
   "description": "Lint Protobuf API files using API Linter",
-  "displayName": "API Linter",
+  "displayName": "API Linter (by same-id)",
   "license": "Apache-2.0",
-  "publisher": "mathematic",
-  "repository": "https://github.com/mathematic-inc/vscode-api-linter",
+  "publisher": "sameid",
+  "repository": "https://github.com/same-id/vscode-api-linter",
   "version": "1.1.1",
   "engines": {
     "vscode": "^1.69.1"
@@ -18,7 +18,6 @@
     "Linters"
   ],
   "activationEvents": [
-    "onCommand:apiLinter.lint",
     "onLanguage:proto3",
     "onLanguage:proto"
   ],
@@ -44,6 +43,11 @@
           "type": "array",
           "default": [],
           "description": "Include paths to use for proto imports."
+        },
+        "apiLinter.directories": {
+          "type": "array",
+          "default": null,
+          "description": "Directory paths to run api-linter on. If not supplied, the current workspace directory will be used."
         }
       }
     },
